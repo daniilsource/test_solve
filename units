@@ -1,0 +1,90 @@
+from pydantic import BaseModel
+import pytest
+
+class AnalysisResult(BaseModel):
+    min: int
+    max: int
+    avg: int
+    sum: int
+    even_cnt: int
+    odd_cnt: int
+
+
+def number_analysis(*args: int) -> AnalysisResult:
+    if not args:
+        raise ValueError("Нужен хотя бы один аргумент")
+    for arg in args:
+        if not isinstance(arg, int):
+            raise ValueError("Нам нужны только числа")
+
+    _min = min(args)
+    _max = max(args)
+    _sum = sum(args)
+    _avg = _sum // len(args)
+    even_cnt = sum(1 for x in args if x % 2 == 0)
+    odd_cnt = len(args) - even_cnt
+
+    return AnalysisResult(
+        min=_min,
+        max=_max,
+        avg=_avg,
+        sum=_sum,
+        even_cnt=even_cnt,
+        odd_cnt=odd_cnt
+    )
+
+def test_number_analysis_all_positive():
+    "положительные числа"
+    result = number_analysis(2, 4, 6, 8, 10)
+    assert result.min == 2
+    assert result.max == 10
+    assert result.avg == 6
+    assert result.sum == 30
+    assert result.even_cnt == 5
+    assert result.odd_cnt == 0
+
+
+def test_number_analysis_mixed_numbers():
+    "отрицательные числа"
+    result = number_analysis(-3, -1, 0, 1, 3)
+    assert result.min == -3
+    assert result.max == 3
+    assert result.avg == 0
+    assert result.sum == 0
+    assert result.even_cnt == 1  # 0
+    assert result.odd_cnt == 4
+
+
+def test_number_analysis_single_number():
+    "оддно число"
+    result = number_analysis(7)
+    assert result.min == 7
+    assert result.max == 7
+    assert result.avg == 7
+    assert result.sum == 7
+    assert result.even_cnt == 0
+    assert result.odd_cnt == 1
+
+
+def test_number_analysis_empty_sequence():
+    "пустой список"
+    with pytest.raises(ValueError):
+        number_analysis()
+
+
+def test_number_analysis_invalid_input():
+    "кривые данные"
+    with pytest.raises(ValueError):
+        number_analysis(1, 2, 'invalid', 4, 5)
+
+
+def test_number_analysis_large_numbers():
+    "очень большие числа"
+    result = number_analysis(10 ** 6, 10 ** 7, -10 ** 6, -10 ** 7)
+    assert result.min == -10 ** 7
+    assert result.max == 10 ** 7
+    assert result.avg == 0
+    assert result.sum == 0
+    assert result.even_cnt == 4
+    assert result.odd_cnt == 0
+
