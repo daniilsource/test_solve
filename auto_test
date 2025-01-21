@@ -1,0 +1,110 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+import time
+
+options = webdriver.ChromeOptions()
+options.add_argument("--start-maximized")
+driver = webdriver.Chrome(options=options)
+
+# Ждём, пока элемент появится
+
+def wait_for_element(locator, timeout=10):
+    try:
+        return WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator))
+    except TimeoutException:
+        print(f"Элемент {locator} не найден за {timeout} секунд")
+        raise
+
+# Логин
+
+def login(email, password):
+    driver.get("http://users.bugred.ru")
+    wait_for_element((By.XPATH, "//li[@class='newlink']/a[span[text()='Войти']]"))
+    driver.find_element(By.XPATH, "//li[@class='newlink']/a[span[text()='Войти']]"").click()
+    wait_for_element((By.NAME, "login")).send_keys(email)
+    driver.find_element(By.NAME, "password").send_keys(password)
+    driver.find_element(By.XPATH, "//input[@value='Авторизоваться']").click()
+
+# Создаём юзера
+
+def create_user(full_name, email, password, address):
+    driver.find_element(By.LINK_TEXT, "Добавить пользователя").click()
+    wait_for_element((By.NAME, "noibiz_name")).send_keys(full_name)
+    driver.find_element(By.NAME, "noibiz_email").send_keys(email)
+    driver.find_element(By.NAME, "noibiz_password").send_keys(password)
+    driver.find_element(By.NAME, "noibiz_adres").send_keys(address)
+    driver.find_element(By.NAME, "act_create").click()
+
+# Ищем и смотрим юзера
+
+def search_and_view_user(email):
+    search_box = wait_for_element((By.NAME, "q"))
+    search_box.clear()
+    search_box.send_keys(email)
+    search_box.send_keys(Keys.ENTER)
+    wait_for_element((By.LINK_TEXT, "Посмотреть")).click()
+
+# Удаляем юзера
+
+def delete_user():
+    delete_button = wait_for_element((By.XPATH, "//tr[td/a[text()='Удалить']]/td/a[text()='Удалить']"))
+    delete_button.click()
+
+# Выход
+
+def logout():
+    try:
+        driver.find_element(By.CLASS_NAME, "dropdown-toggle").click()
+        driver.find_element(By.LINK_TEXT, "Выход").click()
+    except NoSuchElementException:
+        print("Юзер уже вышел")
+
+try:
+    # Логин менеджера
+    print("Логин менеджера...")
+    login("manager@mail.ru", "1")
+
+    # Создание юзера
+    print("Создаём юзера...")
+    user_data = {
+        "name": "Test10",
+        "email": "test10@mail.ru",
+        "password": "password123",
+        "address": "123 Test Street"
+    }
+    create_user(user_data["name"], user_data["email"], user_data["password"], user_data["address"])
+
+    # Выход и логин юзера
+    print("Выход и логин нового юзера...")
+    logout()
+    login(user_data["email"], user_data["password"])
+
+    # Проверка данных
+    print("Проверяем данные...")
+    search_and_view_user(user_data["email"])
+
+    displayed_name = driver.find_element(By.XPATH, "//tr[td[1][text()='ФИО']]/td[2]").text
+    displayed_email = driver.find_element(By.XPATH, "//tr[td[1][text()='Email']]/td[2]").text
+    displayed_address = driver.find_element(By.XPATH, "//tr[td[1][text()='Адрес']]/td[2]").text
+
+    assert displayed_name == user_data["name"], "Имя не совпадает"
+    assert displayed_email == user_data["email"], "Email не совпадает"
+    assert displayed_address == user_data["address"], "Адрес не совпадает"
+
+    # Удаление
+    print("Удаляем юзера...")
+    logout()
+    login("manager@mail.ru", "1")
+    delete_user()
+
+    print("Тест завершён")
+
+except Exception as e:
+    print(f"Ошибка: {e}")
+
+finally:
+    driver.quit()
